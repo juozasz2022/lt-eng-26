@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL") // Vercel standard
+  directUrl = env("POSTGRES_URL_NON_POOLING") // Vercel standard for direct migrations
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  name      String
+  roles     String    @default("['LEARNER']") // JSON array as string
+  ageGroup  String?
+  level     String?
+  createdAt DateTime  @default(now())
+
+  settings  Setting[]
+  histories History[]
+  vocabStats UserVocabulary[]
+  events    UserEvent[]
+  backups   ContentVersion[]
+}
+
+model Setting {
+  id      String  @id @default(uuid())
+  userId  String?
+  key     String
+  value   String  // JSON string
+  user    User?   @relation(fields: [userId], references: [id])
+}
+
+model History {
+  id            String   @id @default(uuid())
+  userId        String
+  actionType    String
+  entityId      String
+  successRate   Int?
+  notes         String?
+  timestamp     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model UserEvent {
+  id            String   @id @default(uuid())
+  userId        String
+  eventType     String   // CLICK, VIEW, TIME, ERROR
+  elementId     String?
+  path          String?
+  duration      Int?     // milliseconds
+  metadata      String?  // JSON string
+  timestamp     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model ContentVersion {
+  id             String   @id @default(uuid())
+  entityType     String   // Lesson, Vocabulary, Matrix
+  entityId       String
+  payload        String   // JSON blob
+  creatorId      String
+  timestamp      DateTime @default(now())
+
+  creator        User     @relation(fields: [creatorId], references: [id])
+}
+
+model EducationalMaterial {
+  id             String  @id
+  type           String
+  title          String
+  contentPayload String  // JSON blob
+}
+
+model GlobalVocabulary {
+  id          String   @id @default(uuid())
+  word        String
+  translation String
+  phonetic    String?
+  type        String
+  lesson      Int
+
+  images      VocabularyImage[]
+  userStats   UserVocabulary[]
+}
+
+model VocabularyImage {
+  id          String   @id @default(uuid())
+  vocabId     String
+  imageUrl    String
+  source      String?  // e.g. "Pixabay"
+  
+  vocabulary  GlobalVocabulary @relation(fields: [vocabId], references: [id])
+}
+
+model UserVocabulary {
+  id             String   @id @default(uuid())
+  userId         String
+  vocabId        String
+  status         String   @default("learning") // 'learning', 'learned'
+  nextReviewDate DateTime?
+  
+  user           User             @relation(fields: [userId], references: [id])
+  vocabulary     GlobalVocabulary @relation(fields: [vocabId], references: [id])
+}

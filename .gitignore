@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.sln
+
+# Environment / Secret
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Database
+lt-eng-app/prisma/*.db
+lt-eng-app/prisma/*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Project specific artifacts
+/lt-eng-docs/archive/
+/Petrov_eng_nedziaga/
+*.rar
+*.zip
+*.7z
+vercell*.png
+
+# Playwright / Testing
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
