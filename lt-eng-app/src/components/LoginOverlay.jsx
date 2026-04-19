@@ -16,7 +16,7 @@ const LoginOverlay = () => {
     
     try {
       await login(email);
-    } catch (err) {
+    } catch {
       setError('Nepavyko prisijungti. Patikrinkite el. paštą.');
     } finally {
       setIsSubmitting(false);

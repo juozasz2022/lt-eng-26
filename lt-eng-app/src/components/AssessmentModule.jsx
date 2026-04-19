@@ -1,5 +1,5 @@
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { speechService } from '../utils/speechUtils';
 import { languageConfig } from '../config/languageConfig';
 
 const AssessmentModule = ({ lesson, onComplete }) => {

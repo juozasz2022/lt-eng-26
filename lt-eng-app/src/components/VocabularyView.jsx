@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { vocabularyData } from '../data/vocabularyData';
 import { speechService } from '../utils/speechUtils';
 import { recognitionService } from '../utils/recognitionUtils';
 import { audioRecorder } from '../utils/audioRecorderUtils';
@@ -20,7 +19,6 @@ export default function VocabularyView({ onBack }) {
   const [filterType, setFilterType] = useState('Pamokomis'); // 'Pamokomis', 'Alfabetas', 'Kalbos dalys'
   const [userStats, setUserStats] = useState({});
   const [micReady, setMicReady] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState({});
   const [showTheater, setShowTheater] = useState(false);
 
   const userId = user?.id;
@@ -54,7 +52,7 @@ export default function VocabularyView({ onBack }) {
       const duration = Date.now() - startTime;
       trackEvent('EXIT_VIEW', 'VOCABULARY', { duration });
     };
-  }, [userId]);
+  }, [userId, trackEvent]);
 
   const handleSpeak = (text) => {
     speechService.speak(text, { rate: speechRate });
@@ -89,10 +87,8 @@ export default function VocabularyView({ onBack }) {
            await apiClient.updateVocabStatus(userId, targetText, 'learned');
            setUserStats(prev => ({ ...prev, [targetText]: 'learned' }));
         }
-        setFailedAttempts(prev => ({ ...prev, [targetText]: 0 }));
       } else {
         audioFeedbackService.playFailure();
-        setFailedAttempts(prev => ({ ...prev, [targetText]: (prev[targetText] || 0) + 1 }));
         
         // AUTO-GUIDANCE: If failed more than once, or score is very low, play native audio to help
         if (score < 50) {
@@ -118,7 +114,7 @@ export default function VocabularyView({ onBack }) {
             await audioRecorder.play();
             await new Promise(r => setTimeout(r, 800));
         }
-      } catch (playErr) {
+      } catch {
         // Fallback
       }
     } 

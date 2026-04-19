@@ -13,45 +13,48 @@ import LessonPDF from './LessonPDF';
 import { languageConfig } from '../config/languageConfig';
 import { useLessonSession } from '../hooks/useLessonSession';
 
+const TABS = ['theory', 'dialogue', 'story', 'assessment'];
+
 export default function LessonView({ lesson, onBack }) {
   const { user, trackEvent } = useAuth();
   const { speechRate, pauseOnHover, repeatSegment } = useSettings();
   
   const [activeTab, setActiveTab] = useState('theory');
   const [activeRecording, setActiveRecording] = useState(null);
-  const [spokenText, setSpokenText] = useState("");
   const [speechFeedback, setSpeechFeedback] = useState(null);
   const [feedbackId, setFeedbackId] = useState(null);
   const [successScore, setSuccessScore] = useState(0);
   const [successWord, setSuccessWord] = useState(null);
   const [testSuccess, setTestSuccess] = useState(false);
-  const [lessonImages, setLessonImages] = useState([]);
   const [fatigueCounter, setFatigueCounter] = useState(0);
   const [showSimulation, setShowSimulation] = useState(false);
+  const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
+  const [currentStoryStep, setCurrentStoryStep] = useState(0);
+  const [isStoryFinished, setIsStoryFinished] = useState(false);
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState(null);
 
   // Session Management
-  const TABS = ['theory', 'dialogue', 'story', 'assessment'];
   const { lastIndex, hasPrompted, setHasPrompted, saveProgress, loading: sessionLoading } = useLessonSession(lesson.id);
 
   useEffect(() => {
     const startTime = Date.now();
     trackEvent('ENTER_LESSON', lesson.id);
 
-    const fetchImages = async () => {
-      try {
-        const images = await apiClient.getLessonImages(lesson.id);
-        setLessonImages(images);
-      } catch (e) {
-        console.warn('Failed to fetch lesson images', e);
-      }
-    };
-    fetchImages();
+    /* lessonImages fetch removed as it is unused */
+
+    if (lesson.id) {
+       const stories = lesson.theory.pasakojimai || lesson.theory.tprsStory || [];
+       if (stories.length > 0) {
+         const randomIdx = Math.floor(Math.random() * stories.length);
+         setSelectedStoryIndex(randomIdx);
+       }
+    }
 
     return () => {
       const duration = Date.now() - startTime;
       trackEvent('EXIT_LESSON', lesson.id, { duration });
     };
-  }, [lesson.id, trackEvent]);
+  }, [lesson.id, trackEvent, lesson.theory.pasakojimai, lesson.theory.tprsStory]);
 
   useEffect(() => {
     trackEvent('SWITCH_TAB', `${lesson.id}_${activeTab}`);
@@ -72,13 +75,10 @@ export default function LessonView({ lesson, onBack }) {
       setActiveRecording(id);
       setFeedbackId(id);
       setSpeechFeedback(null);
-      setSpokenText("");
-      
       await audioRecorder.start();
 
       const dynamicTimeout = Math.max(3000, 2000 + (targetText.length * 100));
       const transcript = await recognitionService.listen(dynamicTimeout, { continuous: true });
-      setSpokenText(transcript);
       
       const result = recognitionService.compare(transcript, targetText, 0.5);
       const score = Math.round(result.score * 100);
@@ -115,7 +115,7 @@ export default function LessonView({ lesson, onBack }) {
       }
       setTimeout(() => setSuccessWord(null), 3000);
       
-      const targetWords = targetText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").split(" ");
+      const targetWords = targetText.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").split(" ");
       const spokenWords = transcript.toLowerCase().split(" ");
       
       const wordResults = targetWords.map(word => {
@@ -141,10 +141,37 @@ export default function LessonView({ lesson, onBack }) {
         await audioRecorder.play();
         await new Promise(r => setTimeout(r, 800));
         speechService.speak(targetText, { rate: 0.8 });
-      } catch (playErr) {
+      } catch {
         speechService.speak(targetText, { rate: 0.8 });
       }
     } 
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'story') {
+      setCurrentStoryStep(0);
+      setIsStoryFinished(false);
+      setLastAnswerCorrect(null);
+    }
+  };
+
+  const handleStoryAnswer = (choice, correct, totalSteps) => {
+    if (choice === correct) {
+      setLastAnswerCorrect(true);
+      setTimeout(() => {
+        setLastAnswerCorrect(null);
+        if (currentStoryStep < totalSteps - 1) {
+          setCurrentStoryStep(prev => prev + 1);
+        } else {
+          setIsStoryFinished(true);
+          trackEvent('STORY_COMPLETE', lesson.id, { storyIndex: selectedStoryIndex });
+        }
+      }, 700);
+    } else {
+      setLastAnswerCorrect(false);
+      setTimeout(() => setLastAnswerCorrect(null), 1000);
+    }
   };
 
   const handleResume = () => {
@@ -292,7 +319,7 @@ export default function LessonView({ lesson, onBack }) {
           {TABS.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
               className={`py-3 px-6 md:px-8 rounded-full font-black text-[10px] md:text-xs uppercase tracking-[0.2em] transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === tab 
                 ? 'bg-white shadow-xl text-eng-blue' 
@@ -417,72 +444,122 @@ export default function LessonView({ lesson, onBack }) {
               ))}
             </div>
           )}
-
           {activeTab === 'story' && (
             <div className="space-y-12 animate-in fade-in slide-in-from-bottom-2">
-              {lesson.theory.tprsStory.map((s, i) => (
-                <div key={i} className="bg-white p-8 md:p-12 rounded-[3rem] border-2 border-slate-100 shadow-xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-bl-[5rem] -z-10 transition-all group-hover:scale-110 decorative-pattern"></div>
-                  
-                  <div className="flex justify-between items-start mb-10">
-                     <div className="flex-1">
-                        <div className="flex items-center gap-4 mb-4">
-                          <button 
-                            onClick={() => handleSpeak(s.text)}
-                            onMouseEnter={handleHoverPause}
-                            className="bg-eng-blue text-white p-4 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-all cursor-pointer"
-                            title="Listen"
-                          >
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path></svg>
-                          </button>
-                          <button 
-                            onClick={() => handleStartRecording(s.text, `story-${i}`)}
-                            className={`p-4 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-all cursor-pointer border-2 ${activeRecording === `story-${i}` ? 'bg-eng-red text-white border-eng-red animate-pulse' : 'bg-white border-eng-red text-eng-red'}`}
-                            title="Practice Pronunciation"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
-                          </button>
-                        </div>
-                        
-                        <h3 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight pr-10 mb-2 italic">
-                          {speechFeedback?.wordResults && feedbackId === `story-${i}` ? (
-                             <span className="flex flex-wrap gap-x-2">
-                              {speechFeedback.wordResults.map((res, idx) => (
-                                <span key={idx} className={res.match ? 'text-green-600' : 'text-eng-red underline decoration-dotted'}>
-                                  {res.word}
-                                </span>
-                              ))}
-                            </span>
-                          ) : `"${s.text}"`}
-                        </h3>
-                        <p className="text-xl text-slate-400 font-medium italic secondary-label">{s.translation}</p>
-                     </div>
-                     
-                     <span className="bg-slate-100 text-slate-400 w-12 h-12 flex items-center justify-center rounded-2xl font-black text-xs metadata-tag">
-                       {i + 1}
-                     </span>
-                  </div>
-                  
-                  {/* COMPREHENSION CHECK */}
-                  <div className="bg-slate-50 p-8 rounded-[2rem] border-2 border-blue-100 shadow-inner">
-                    <h4 className="font-black text-eng-blue mb-6 text-xs uppercase tracking-[0.3em] flex items-center gap-2 secondary-label">
-                      <span className="w-6 h-0.5 bg-eng-blue"></span>
-                      Quick Check
-                    </h4>
-                    <p className="text-xl md:text-2xl font-bold mb-8 text-slate-700">{s.check.question}</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {s.check.choices.map((c, j) => (
+              {(() => {
+                const stories = lesson.theory.pasakojimai || lesson.theory.tprsStory || [];
+                const currentStory = stories[selectedStoryIndex] || (Array.isArray(stories[0]) ? stories[0] : stories);
+                const storySteps = Array.isArray(currentStory) ? currentStory : [currentStory];
+                
+                if (isStoryFinished) {
+                  return (
+                    <div className="bg-white p-12 md:p-20 rounded-[3rem] border-2 border-green-100 shadow-2xl text-center animate-in zoom-in-95 duration-500">
+                      <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                      </div>
+                      <h3 className="text-4xl font-black text-slate-900 mb-4 italic">Puiku, Juozai!</h3>
+                      <p className="text-xl text-slate-500 mb-10">Šis pasakojimas įveiktas. Esi vienu žingsniu arčiau laisvo kalbėjimo!</p>
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <button 
-                          key={j}
-                          className="p-5 md:p-6 bg-white border-2 border-slate-100 rounded-2xl hover:border-eng-blue hover:text-eng-blue text-left font-black transition-all cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 active:scale-95"
+                          onClick={() => {
+                            const nextIdx = (selectedStoryIndex + 1) % stories.length;
+                            setSelectedStoryIndex(nextIdx);
+                            setCurrentStoryStep(0);
+                            setIsStoryFinished(false);
+                          }}
+                          className="px-8 py-4 bg-eng-blue text-white rounded-2xl font-black shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer"
                         >
-                          {c}
+                          KITAS PASAKOJIMAS
                         </button>
-                      ))}
+                        <button 
+                          onClick={() => setActiveTab('assessment')}
+                          className="px-8 py-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-black hover:bg-slate-50 transition-all cursor-pointer"
+                        >
+                          EITI Į TESTUKĄ
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                const s = storySteps[currentStoryStep];
+                if (!s) return <div className="p-10 text-center text-slate-400">Kraunama istorija...</div>;
+
+                return (
+                  <div className="bg-white p-8 md:p-12 rounded-[3rem] border-2 border-slate-100 shadow-xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-bl-[5rem] -z-10 transition-all group-hover:scale-110 decorative-pattern"></div>
+                    
+                    <div className="flex justify-between items-start mb-10">
+                      <div className="flex-1">
+                          <div className="flex items-center gap-4 mb-4">
+                            <button 
+                              onClick={() => handleSpeak(s.text)}
+                              onMouseEnter={handleHoverPause}
+                              className="bg-eng-blue text-white p-4 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-all cursor-pointer"
+                              title="Listen"
+                            >
+                              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path></svg>
+                            </button>
+                            <button 
+                              onClick={() => handleStartRecording(s.text, `story-${currentStoryStep}`)}
+                              className={`p-4 rounded-full shadow-lg hover:scale-110 active:scale-90 transition-all cursor-pointer border-2 ${activeRecording === `story-${currentStoryStep}` ? 'bg-eng-red text-white border-eng-red animate-pulse' : 'bg-white border-eng-red text-eng-red'}`}
+                              title="Practice Pronunciation"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                            </button>
+                          </div>
+                          
+                          <h3 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight pr-10 mb-2 italic">
+                            {speechFeedback?.wordResults && feedbackId === `story-${currentStoryStep}` ? (
+                              <span className="flex flex-wrap gap-x-2">
+                                {speechFeedback.wordResults.map((res, idx) => (
+                                  <span key={idx} className={res.match ? 'text-green-600' : 'text-eng-red underline decoration-dotted'}>
+                                    {res.word}
+                                  </span>
+                                ))}
+                              </span>
+                            ) : `"${s.text}"`}
+                          </h3>
+                          <p className="text-xl text-slate-400 font-medium italic secondary-label">{s.translation}</p>
+                      </div>
+                      
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="bg-slate-100 text-slate-400 w-12 h-12 flex items-center justify-center rounded-2xl font-black text-xs metadata-tag">
+                          {currentStoryStep + 1} / {storySteps.length}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* COMPREHENSION CHECK */}
+                    <div className={`p-8 rounded-[2rem] border-2 transition-all duration-300 ${lastAnswerCorrect === true ? 'bg-green-50 border-green-200' : lastAnswerCorrect === false ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-blue-100 shadow-inner'}`}>
+                      <h4 className="font-black text-eng-blue mb-6 text-xs uppercase tracking-[0.3em] flex items-center gap-2 secondary-label">
+                        <span className="w-6 h-0.5 bg-eng-blue"></span>
+                        {lastAnswerCorrect === true ? 'Teisingai!' : lastAnswerCorrect === false ? 'Pabandyk dar kartą' : 'Quick Check'}
+                      </h4>
+                      <p className="text-xl md:text-2xl font-bold mb-8 text-slate-700">{s.check.question}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {s.check.choices.map((c, j) => (
+                          <button 
+                            key={j}
+                            onClick={() => handleStoryAnswer(c, s.check.answer, storySteps.length)}
+                            className={`p-5 md:p-6 rounded-2xl text-left font-black transition-all cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 active:scale-95 border-2 ${lastAnswerCorrect === true && c === s.check.answer ? 'bg-green-500 text-white border-green-500' : 'bg-white border-slate-100 hover:border-eng-blue hover:text-eng-blue'}`}
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="mt-10 h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-eng-blue transition-all duration-500 ease-out"
+                        style={{ width: `${((currentStoryStep + 1) / storySteps.length) * 100}%` }}
+                      ></div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })()}
             </div>
           )}
           {activeTab === 'assessment' && (

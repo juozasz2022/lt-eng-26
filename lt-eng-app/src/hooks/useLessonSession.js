@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useSettings } from '../contexts/SettingsContext';
+import { useCallback, useState, useEffect } from 'react';
 import { apiClient } from '../utils/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,13 +8,7 @@ export function useLessonSession(lessonId) {
   const [hasPrompted, setHasPrompted] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user && lessonId) {
-      loadSession();
-    }
-  }, [user, lessonId]);
-
-  const loadSession = async () => {
+  const loadSession = useCallback(async () => {
     try {
       const settings = await apiClient.getSettings(user.id);
       const sessionKey = `session_${lessonId}`;
@@ -29,7 +22,13 @@ export function useLessonSession(lessonId) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, lessonId]);
+
+  useEffect(() => {
+    if (user && lessonId) {
+      loadSession();
+    }
+  }, [user, lessonId, loadSession]);
 
   const saveProgress = async (index) => {
     if (!user || !lessonId) return;

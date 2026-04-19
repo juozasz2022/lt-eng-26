@@ -19,7 +19,7 @@ function AppContent() {
   const { user, trackEvent, loading, hasRole, logout } = useAuth();
   const [dbLessons, setDbLessons] = useState([]);
 
-  const fetchLessons = async () => {
+  const fetchLessons = React.useCallback(async () => {
     try {
       const resp = await fetch('http://localhost:5001/api/material');
       const data = await resp.json();
@@ -36,15 +36,16 @@ function AppContent() {
       // Fallback to static if API fails (optional)
       setDbLessons(lessonsContent);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (user) {
       loadSettingsFromServer(user.id);
       trackEvent('VIEW', 'DASHBOARD');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchLessons();
     }
-  }, [user]);
+  }, [user, loadSettingsFromServer, trackEvent, fetchLessons]);
 
   useEffect(() => {
     const isVeryBig = fontScale === '140%' || fontScale === '160%';

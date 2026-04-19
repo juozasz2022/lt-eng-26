@@ -3,6 +3,7 @@ import { apiClient } from '../utils/apiClient';
 
 const SettingsContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const PROFILES = {
   standard: {
     label: 'PC Standartas',
@@ -42,6 +43,7 @@ export const PROFILES = {
   }
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSettings() {
   return useContext(SettingsContext);
 }
@@ -127,9 +129,7 @@ export function SettingsProvider({ children }) {
         if (s.key === 'pauseOnHover') setPauseOnHover(s.value === true || s.value === 'true');
         if (s.key === 'repeatSegment') setRepeatSegment(s.value === true || s.value === 'true');
       });
-    } catch (e) {
-      console.warn('Failed to load settings from server, using local', e);
-    }
+    } catch { /* ignore settings load error */ }
   };
 
   // Sync Hooks

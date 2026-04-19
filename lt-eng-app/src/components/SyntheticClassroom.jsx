@@ -1,6 +1,12 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSettings } from '../contexts/SettingsContext';
+import { speechService } from '../utils/speechUtils';
+import { recognitionService } from '../utils/recognitionUtils';
+import { generateSequence } from '../utils/simulationGenerator';
+import { characters } from '../data/characters';
 import { theaterAmbience } from '../utils/TheaterAmbience';
 import StudentDesk from './StudentDesk';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useTheaterCamera } from '../hooks/useTheaterCamera';
 
 export default function SyntheticClassroom({ lesson, onFinish }) {
@@ -12,11 +18,13 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
   const [isListening, setIsListening] = useState(false);
   const [isFrozen, setIsFrozen] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [history, setHistory] = useState([]);
   const [speakingId, setSpeakingId] = useState(null);
   const [isIntroActive, setIsIntroActive] = useState(true);
   const [isCurtainOpen, setIsCurtainOpen] = useState(false);
   const [juozasSuccessCount, setJuozasSuccessCount] = useState(0);
+  const [isWaitingForReady, setIsWaitingForReady] = useState(false);
+  const readyResolver = useRef(null);
+  const playStepRef = useRef();
   
   // Cinematic Camera Hook
   useTheaterCamera(speakingId);
@@ -55,36 +63,23 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
       clearTimeout(timer);
     };
   }, [lesson]);
-
-  useEffect(() => {
-    // Start simulation when ready AND curtains are opening
-    if (simulation && isCurtainOpen && !playbackStarted.current) {
-      playbackStarted.current = true;
-      setTimeout(() => {
-        if (isMounted.current) {
-          setIsPlaying(true);
-          playStep(0);
-        }
-      }, 1000); 
-    }
-  }, [simulation, isCurtainOpen]);
-
+  
   const waitForUnfreeze = useCallback(async () => {
     while ((isPaused || isFrozenRef.current) && isMounted.current) {
       await new Promise(r => setTimeout(r, 100));
     }
   }, [isPaused]);
 
-  const pedagogyPause = async (ms) => {
+  const pedagogyPause = useCallback(async (ms) => {
     const start = Date.now();
     while (Date.now() - start < ms && isMounted.current) {
       await waitForUnfreeze();
       await new Promise(r => setTimeout(r, 100));
       if (isFrozenRef.current || isPaused) continue; 
     }
-  };
+  }, [waitForUnfreeze, isPaused]);
 
-  const playStep = async (index) => {
+  const playStep = useCallback(async (index) => {
     await waitForUnfreeze();
 
     if (!isMounted.current || !simulation) return;
@@ -105,7 +100,7 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
 
     setSpeakingId(step.speaker);
     setCurrentStepIndex(index);
-    setHistory(prev => [...prev, { ...step, char }]);
+    // history set removed
 
     // Text-First Pause
     await pedagogyPause(2500);
@@ -115,6 +110,14 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
 
     if (step.isInteractiveVoice) {
       setIsPlaying(false);
+      
+      // WAIT FOR READY
+      setIsWaitingForReady(true);
+      await new Promise(resolve => {
+        readyResolver.current = resolve;
+      });
+      setIsWaitingForReady(false);
+
       setIsListening(true);
       setTranscript('');
       
@@ -133,14 +136,14 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
           await waitForUnfreeze();
           if (isMounted.current) {
             setIsPlaying(true);
-            playStep(index + 1);
+            playStepRef.current(index + 1);
           }
         }
-      } catch (err) {
+      } catch {
         if (isMounted.current) {
           setIsListening(false);
           setIsPlaying(true);
-          playStep(index + 1);
+          playStepRef.current(index + 1);
         }
       }
       return;
@@ -166,9 +169,28 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
     if (isFrozenRef.current) await waitForUnfreeze();
     
     if (isMounted.current) {
-      playStep(index + 1);
+      playStepRef.current(index + 1);
     }
-  };
+  }, [simulation, waitForUnfreeze, pedagogyPause, onFinish]);
+
+  useEffect(() => {
+    playStepRef.current = playStep;
+  }, [playStep]);
+
+  useEffect(() => {
+    // Start simulation when ready AND curtains are opening
+    if (simulation && isCurtainOpen && !playbackStarted.current) {
+      playbackStarted.current = true;
+      const startTimer = setTimeout(() => {
+        if (isMounted.current) {
+          setIsPlaying(true);
+          playStep(0);
+        }
+      }, 1000); 
+      return () => clearTimeout(startTimer);
+    }
+  }, [simulation, isCurtainOpen, playStep]);
+
 
   if (!simulation) return null;
 
@@ -176,7 +198,7 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
 
   return (
     <div 
-      className={`relative w-full h-full bg-slate-950 text-white flex flex-col font-sans selection:bg-blue-500/30 overflow-hidden theater-stage-container ${isCurtainOpen ? 'curtain-open' : ''}`}
+      className={`relative w-full h-full bg-slate-950 text-white flex flex-col font-sans selection:bg-blue-500/30 overflow-y-auto theater-stage-container ${isCurtainOpen ? 'curtain-open' : ''}`}
       onMouseEnter={() => pauseOnHover && setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -308,9 +330,38 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
                         <div 
                           key={i} 
                           className="w-1 bg-blue-500 rounded-full animate-bounce" 
-                          style={{animationDelay: `${i*0.1}s`, height: `${30 + Math.random() * 70}%`}}
+                          style={{animationDelay: `${i*0.1}s`, height: `${30 + ((i * 13) % 70)}%`}}
                         ></div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* READY OVERLAY (NO-STRESS) */}
+                  {isWaitingForReady && (
+                    <div className="absolute inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl rounded-[2rem] flex flex-col items-center justify-center p-8 animate-in fade-in duration-500 border border-blue-500/20">
+                      <div className="text-blue-500 font-black tracking-[0.4em] uppercase text-[10px] mb-6 animate-pulse">
+                        Savo eilė kalbėti...
+                      </div>
+                      
+                      <div className="bg-white/5 border border-white/10 p-6 rounded-3xl text-center mb-10 max-w-sm shadow-2xl">
+                         <p className="text-slate-500 text-[10px] mb-2 uppercase font-black tracking-widest">Užuomina (Pasakykite tai):</p>
+                         <p className="text-3xl font-black text-white/30 italic select-none tracking-tighter uppercase">
+                            {activeStep.targetText || "..."}
+                         </p>
+                      </div>
+
+                      <button 
+                        onClick={() => readyResolver.current && readyResolver.current()}
+                        className="group relative px-10 py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-black text-lg tracking-tighter shadow-2xl transition-all hover:scale-105 active:scale-95"
+                      >
+                        <div className="absolute -inset-1 bg-blue-400 blur opacity-30 group-hover:opacity-60 transition duration-1000"></div>
+                        <span className="relative flex items-center gap-4">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                          ESU PASIRUOŠĘS
+                        </span>
+                      </button>
+                      
+                      <p className="mt-8 text-slate-500 text-[9px] font-black uppercase tracking-[0.3em]">Spauskite mygtuką, kai prisiminsite sakinį</p>
                     </div>
                   )}
                </div>
@@ -320,7 +371,7 @@ export default function SyntheticClassroom({ lesson, onFinish }) {
           </div>
 
           {/* PROGRESS HUD */}
-          <div className="w-full max-w-2xl pb-4 mt-2 z-20">
+          <div className="w-full max-w-2xl pb-4 mt-2 z-20 shrink-0">
              <div className="flex gap-1 h-1 bg-white/5 rounded-full overflow-hidden border border-white/5 backdrop-blur-sm">
                 {simulation.steps.map((_, idx) => (
                   <div 

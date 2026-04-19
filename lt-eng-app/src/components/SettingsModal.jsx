@@ -7,8 +7,6 @@ export default function SettingsModal({ onClose }) {
     deviceMode, setDeviceMode,
     fontScale, setFontScale, 
     speechRate, setSpeechRate,
-    hintMode, setHintMode, 
-    autoHelpThreshold, setAutoHelpThreshold,
     highContrast, setHighContrast,
     pauseOnHover, setPauseOnHover,
     repeatSegment, setRepeatSegment
@@ -128,7 +126,8 @@ export default function SettingsModal({ onClose }) {
                             className={`relative flex-1 flex flex-col items-center py-3 rounded-xl cursor-pointer transition-all ${speechRate === opt.value ? 'bg-white text-slate-900 shadow-md scale-105' : 'text-slate-500 hover:bg-white/5'}`}
                           >
                             <ModifiedBadge keyName="lt_eng_speech_rate" value={opt.value} />
-                            <span className="text-[14px]">{opt.icon}</span>
+                            <span className="text-3xl">{opt.icon}</span>
+                            <span className="text-[7px] font-black uppercase mt-1 opacity-60 px-1 text-center">{opt.label}</span>
                           </button>
                         ))}
                      </div>
@@ -141,9 +140,13 @@ export default function SettingsModal({ onClose }) {
                       </div>
                       <button 
                         onClick={() => setHighContrast(!highContrast)}
-                        className={`w-14 h-8 rounded-full transition-all relative ${highContrast ? 'bg-eng-red shadow-[0_0_15px_rgba(255,0,0,0.5)]' : 'bg-slate-700'}`}
+                        className={`w-24 h-10 rounded-full transition-all relative cursor-pointer border-2 flex items-center px-2 ${highContrast ? 'bg-green-600 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-slate-700 border-slate-600'}`}
                       >
-                        <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${highContrast ? 'left-7 shadow-inner' : 'left-1'}`}></div>
+                        <span className={`text-[10px] font-black tracking-widest transition-all ${highContrast ? 'opacity-100 ml-1 text-white' : 'opacity-0 ml-0 text-slate-400'}`}>TAIP</span>
+                        <div className={`absolute top-1 w-7 h-7 rounded-full bg-white transition-all shadow-md flex items-center justify-center ${highContrast ? 'left-15' : 'left-1'}`}>
+                          <div className={`w-3 h-3 rounded-full ${highContrast ? 'bg-green-600' : 'bg-slate-400'}`}></div>
+                        </div>
+                        <span className={`text-[10px] font-black tracking-widest ml-auto transition-all ${highContrast ? 'opacity-0 mr-0 text-white' : 'opacity-100 mr-1 text-slate-300'}`}>NE</span>
                       </button>
                    </div>
                 </div>
@@ -160,13 +163,16 @@ export default function SettingsModal({ onClose }) {
                         <button 
                           key={b.id}
                           onClick={() => b.setter(!b.state)}
-                          className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer ${b.state ? 'bg-white border-white text-slate-900' : 'bg-white/5 border-white/10 text-slate-500'}`}
+                          className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer ${b.state ? 'bg-white border-white text-slate-900 shadow-md' : 'bg-white/5 border-white/10 text-slate-500'}`}
                         >
                           <div className="flex items-center gap-3">
                             <span className="text-xl">{b.icon}</span>
                             <span className="text-[10px] font-black uppercase tracking-widest">{b.label}</span>
                           </div>
-                          <div className={`w-3 h-3 rounded-full ${b.state ? 'bg-eng-red shadow-[0_0_8px_rgba(255,0,0,0.8)]' : 'bg-slate-700'}`}></div>
+                          <div className={`flex items-center gap-2 px-2 py-1 rounded-lg border text-[8px] font-black transition-all ${b.state ? 'bg-green-100 border-green-200 text-green-700' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
+                            {b.state ? 'TAIP' : 'NE'}
+                            <div className={`w-2 h-2 rounded-full ${b.state ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-slate-600'}`}></div>
+                          </div>
                         </button>
                      ))}
                    </div>

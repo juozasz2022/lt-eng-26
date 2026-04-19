@@ -23,25 +23,32 @@ app.post('/api/auth/login', async (req, res) => {
       include: { settings: true }
     });
 
-    // Development auto-elevation (Phase 3 requirement)
-    const devRoles = ['LEARNER', 'CREATOR', 'EDITOR'];
+    // Role configuration based on specific emails
+    const getRolesForEmail = (email) => {
+      if (email === 'juozasz2022@gmail.com') return ['LEARNER', 'CREATOR', 'EDITOR'];
+      if (email === 'juozasz2024@gmail.com') return ['LEARNER', 'EDITOR'];
+      if (email === 'juozasz2025@gmail.com') return ['LEARNER'];
+      return ['LEARNER']; // Default student role
+    };
+
+    const assignedRoles = getRolesForEmail(email);
 
     if (!user) {
       user = await prisma.user.create({
         data: {
           email,
           name: email.split('@')[0],
-          roles: JSON.stringify(devRoles) // Grant all roles to new users for dev
+          roles: JSON.stringify(assignedRoles)
         },
         include: { settings: true }
       });
     } else {
-      // Ensure existing user has roles (Phase 3 requirement)
+      // Synchronize roles with the new mapping on every login
       await prisma.user.update({
         where: { id: user.id },
-        data: { roles: JSON.stringify(devRoles) }
+        data: { roles: JSON.stringify(assignedRoles) }
       });
-      user.roles = JSON.stringify(devRoles);
+      user.roles = JSON.stringify(assignedRoles);
     }
 
     const roles = JSON.parse(user.roles);
@@ -72,10 +79,25 @@ const requireRole = (role) => async (req, res, next) => {
 
 app.post('/api/events', async (req, res) => {
   const { userId, eventType, elementId, path, duration, metadata } = req.body;
+  
+  const parsedUserId = parseInt(userId);
+  if (!userId || isNaN(parsedUserId)) {
+    return res.status(200).json({ status: 'skipped', reason: 'invalid_user_id' });
+  }
+
   try {
+    // Verify user exists to avoid P2003 foreign key constraint error (e.g. from stale localStorage)
+    const userExists = await prisma.user.findUnique({
+      where: { id: parsedUserId }
+    });
+
+    if (!userExists) {
+      return res.status(200).json({ status: 'skipped', reason: 'user_not_found' });
+    }
+
     const event = await prisma.userEvent.create({
       data: {
-        userId,
+        userId: parsedUserId,
         eventType,
         elementId,
         path,

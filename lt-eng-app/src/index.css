@@ -147,7 +147,7 @@ button:active { @apply scale-95; }
 
 .theater-stage-container {
   perspective: 2000px;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Stage Spotlight */
@@ -295,7 +295,7 @@ button:active { @apply scale-95; }
 
 .theater-stage-container {
   perspective: 2000px;
-  overflow: hidden;
+  overflow-y: auto;
   background: #020617; /* Deep Slate Black */
 }
 

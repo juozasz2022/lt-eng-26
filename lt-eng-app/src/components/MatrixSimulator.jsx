@@ -15,7 +15,6 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
   const [targetForm, setTargetForm] = useState(null);
   const [score, setScore] = useState(0);
   const [targetScore] = useState(20); // Longer exercise as requested
-  const [learnedCells, setLearnedCells] = useState(new Set());
   
   // UI / Theater States
   const [isIntroActive, setIsIntroActive] = useState(true);
@@ -27,6 +26,8 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
   const [transcript, setTranscript] = useState('');
   const [wrongShake, setWrongShake] = useState(null);
   const [isTeacherPrompting, setIsTeacherPrompting] = useState(false);
+  const [isWaitingForReady, setIsWaitingForReady] = useState(false);
+  const readyResolver = useRef(null);
 
   const isMounted = useRef(true);
   const isFrozenRef = useRef(false);
@@ -49,9 +50,9 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
     await waitForUnfreeze();
     if (!isMounted.current) return;
 
-    const verb = verbsToUse[Math.floor(Math.random() * verbsToUse.length)];
-    const tense = tenses[Math.floor(Math.random() * tenses.length)];
-    const type = types[Math.floor(Math.random() * types.length)];
+    const verb = verbsToUse[score % verbsToUse.length];
+    const tense = tenses[score % tenses.length];
+    const type = types[score % types.length];
     
     const newForm = { tense, type, data: verb.forms[tense][type] };
     setCurrentVerb(verb);
@@ -66,13 +67,20 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
     await waitForUnfreeze();
 
     const promptText = `Kaip pasakysite: ${newForm.data.lt}?`;
-    await speechService.speak(promptText, { ...characters.teacher.voice, id: 'teacher' });
+    await speechService.speak(promptText, { ...characters.teacher.voice, id: 'teacher', lang: 'lt' });
     
     if (isMounted.current) {
       setSpeakingId(null);
       setIsTeacherPrompting(false);
+      
+      // WAIT FOR READY
+      setIsWaitingForReady(true);
+      await new Promise(resolve => {
+        readyResolver.current = resolve;
+      });
+      setIsWaitingForReady(false);
     }
-  }, [verbsToUse, waitForUnfreeze]);
+  }, [verbsToUse, waitForUnfreeze, score, tenses, types]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -88,18 +96,14 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
 
     return () => {
       isMounted.current = false;
-      document.body.style.overflow = 'auto';
       theaterAmbience.stop();
       speechService.stop();
       recognitionService.stop();
       clearTimeout(timer);
     };
-  }, []);
+  }, [startRound]);
 
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = 'auto'; };
-  }, []);
+  // useEffect for body overflow removed to allow manual scrolling as requested
 
   const handleCorrectSelection = async () => {
     const newScore = score + 1;
@@ -108,10 +112,10 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
     // Teacher praise
     setSpeakingId('teacher');
     const praises = ['Puiku!', 'Šaunu!', 'Teisingai.', 'Labai gerai.'];
-    const praise = praises[Math.floor(Math.random() * praises.length)];
+    const praise = praises[score % praises.length];
     
     audioFeedbackService.playSuccess();
-    await speechService.speak(praise, { ...characters.teacher.voice, id: 'teacher' });
+    await speechService.speak(praise, { ...characters.teacher.voice, id: 'teacher', lang: 'lt' });
     
     if (isMounted.current) {
       setSpeakingId(null);
@@ -133,10 +137,9 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
       setWrongShake(cellId);
       audioFeedbackService.playFailure();
       
-      setSpeakingId('teacher');
       const corrections = ['Atidžiau...', 'Pabandykite dar kartą.', 'Ne visai taip.'];
-      const correction = corrections[Math.floor(Math.random() * corrections.length)];
-      await speechService.speak(correction, { ...characters.teacher.voice, id: 'teacher' });
+      const correction = corrections[score % corrections.length];
+      await speechService.speak(correction, { ...characters.teacher.voice, id: 'teacher', lang: 'lt' });
       
       if (isMounted.current) {
         setSpeakingId(null);
@@ -147,6 +150,7 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
 
   const handleVoiceAnswer = async () => {
     if (isFrozen || isListening) return;
+    setIsWaitingForReady(false); // Clear waiting state if starting voice
 
     try {
       setIsListening(true);
@@ -165,11 +169,11 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
           setIsListening(false);
           audioFeedbackService.playFailure();
           setSpeakingId('teacher');
-          await speechService.speak("Pabandykite dar kartą ištarti.", { ...characters.teacher.voice, id: 'teacher' });
+          await speechService.speak("Pabandykite dar kartą ištarti.", { ...characters.teacher.voice, id: 'teacher', lang: 'lt' });
           setSpeakingId(null);
         }
       }
-    } catch (err) {
+    } catch {
       setIsListening(false);
     }
   };
@@ -178,7 +182,7 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
 
   return (
     <div 
-      className={`fixed inset-0 z-[5000] bg-slate-950 text-white flex flex-col font-sans overflow-hidden theater-stage-container ${isCurtainOpen ? 'curtain-open' : ''}`}
+      className={`fixed inset-0 z-[5000] bg-slate-950 text-white flex flex-col font-sans overflow-y-auto theater-stage-container ${isCurtainOpen ? 'curtain-open' : ''}`}
       onMouseEnter={() => pauseOnHover && setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -245,11 +249,40 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
            <div className="w-full text-center mb-4 animate-in fade-in slide-in-from-top-4 duration-700">
               <div className="text-blue-500 font-black text-[10px] uppercase tracking-[0.4em] mb-2 opacity-60">Išverskite ir pasirinkite</div>
               <h1 className="text-3xl md:text-5xl lg:text-6xl font-black italic tracking-tighter text-white drop-shadow-[0_0_30px_rgba(59,130,246,0.3)]">
-                {targetForm.data.lt.toUpperCase()}
+                {isListening ? (transcript || "Klausausi...") : targetForm.data.lt.toUpperCase()}
               </h1>
               {isListening && (
                 <div className="mt-4 text-blue-400 font-bold italic animate-pulse">
                   🎤 {transcript || "Klausausi..."}
+                </div>
+              )}
+
+              {/* READY OVERLAY (NO-STRESS) */}
+              {isWaitingForReady && (
+                <div className="absolute inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl rounded-[2rem] flex flex-col items-center justify-center p-8 animate-in fade-in duration-500 border border-blue-500/20 shadow-[0_0_100px_rgba(30,41,59,0.8)]">
+                  <div className="text-blue-500 font-black tracking-[0.4em] uppercase text-[10px] mb-6 animate-pulse">
+                    Jūsų eilė...
+                  </div>
+                  
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-3xl text-center mb-10 max-w-sm shadow-2xl">
+                     <p className="text-slate-500 text-[10px] mb-2 uppercase font-black tracking-widest">Užduotis:</p>
+                     <p className="text-2xl md:text-3xl font-black text-white italic select-none tracking-tighter uppercase leading-tight">
+                        {targetForm.data.lt}
+                     </p>
+                  </div>
+
+                  <button 
+                    onClick={() => readyResolver.current && readyResolver.current()}
+                    className="group relative px-10 py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-black text-lg tracking-tighter shadow-2xl transition-all hover:scale-105 active:scale-95"
+                  >
+                    <div className="absolute -inset-1 bg-blue-400 blur opacity-30 group-hover:opacity-60 transition duration-1000"></div>
+                    <span className="relative flex items-center gap-4">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                      ESU PASIRUOŠĘS
+                    </span>
+                  </button>
+                  
+                  <p className="mt-8 text-slate-500 text-[11px] font-black uppercase tracking-[0.3em]">Spauskite, kai būsite pasiruošęs ištarti arba pasirinkti</p>
                 </div>
               )}
            </div>
@@ -273,7 +306,6 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
                 <React.Fragment key={type}>
                   {tenses.map((tense) => {
                     const cellId = `${tense}-${type}`;
-                    const isTarget = targetForm.tense === tense && targetForm.type === type;
                     const isWrong = wrongShake === cellId;
                     const cellData = currentVerb.forms[tense][type];
                     
@@ -308,7 +340,7 @@ export default function MatrixSimulator({ onComplete, customVerbs }) {
       </div>
 
       {/* PROGRESS HUD */}
-      <div className="w-full bg-black/40 backdrop-blur-xl border-t border-white/5 px-8 py-3 z-30">
+      <div className="w-full bg-black/40 backdrop-blur-xl border-t border-white/5 px-8 py-3 z-30 shrink-0">
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
            <div className="flex gap-1 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
               {Array.from({length: targetScore}).map((_, idx) => (

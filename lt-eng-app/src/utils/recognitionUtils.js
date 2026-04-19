@@ -69,7 +69,9 @@ class RecognitionService {
                 this.instance.onerror = null;
                 this.instance.stop();
               }
-            } catch (e) {}
+            } catch {
+              // Ignore cleanup errors
+            }
 
             if (isError) reject(result);
             else resolve(result);
@@ -118,7 +120,7 @@ class RecognitionService {
   stop() {
     if (this.timer) clearTimeout(this.timer);
     if (this.instance) {
-       try { this.instance.stop(); } catch(e) {}
+       try { this.instance.stop(); } catch { /* ignore stop error */ }
        this.instance = null;
     }
   }
@@ -127,7 +129,7 @@ class RecognitionService {
     if (!text) return "";
     return text
       .toLowerCase()
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
       .replace(/\s{2,}/g, " ")
       .trim();
   }

@@ -11,7 +11,14 @@ export const generateSequence = (lesson, characters) => {
   // Extract phrases
   const sourcePhrases = [
     ...(lesson.theory.dialogue || []).map(d => ({ text: d.text, translation: d.translation })),
-    ...(lesson.theory.tprsStory || []).map(s => ({ text: s.text, translation: s.translation }))
+    ...(lesson.theory.tprsStory || []).map(s => ({ text: s.text, translation: s.translation })),
+    ...(lesson.theory.pasakojimai || []).map(p => {
+      // Handle the case where pasakojimai might be an array of steps
+      if (Array.isArray(p)) {
+        return p.map(step => ({ text: step.text, translation: step.translation }));
+      }
+      return { text: p.text, translation: p.translation };
+    }).flat()
   ].filter(p => !p.text.startsWith('- Hello'));
 
   if (sourcePhrases.length === 0) {

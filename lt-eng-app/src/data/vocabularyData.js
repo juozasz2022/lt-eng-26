@@ -6,6 +6,12 @@ export const vocabularyData = [
   { word: "open", translation: "atidaryti", phonetic: "/ˈəʊpən/", type: "verb", lesson: 1 },
   { word: "close", translation: "uždaryti", phonetic: "/kləʊz/", type: "verb", lesson: 1 },
   
+  // Story Prep: Lesson 1
+  { word: "cat", translation: "katinas", phonetic: "/kæt/", type: "noun", lesson: 1 },
+  { word: "fish", translation: "žuvis", phonetic: "/fɪʃ/", type: "noun", lesson: 1 },
+  { word: "sea", translation: "jūra", phonetic: "/siː/", type: "noun", lesson: 1 },
+  { word: "big", translation: "didelis", phonetic: "/bɪɡ/", type: "adjective", lesson: 1 },
+  { word: "small", translation: "mažas", phonetic: "/smɔːl/", type: "adjective", lesson: 1 },
   // Lesson 2: To Be & Pronouns
   { word: "I", translation: "aš", phonetic: "/aɪ/", type: "pronoun", lesson: 2 },
   { word: "You", translation: "tu / jūs", phonetic: "/juː/", type: "pronoun", lesson: 2 },

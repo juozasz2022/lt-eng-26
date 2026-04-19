@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 
 export default function StudentDesk({ active, successCount }) {
   return (
@@ -53,11 +53,11 @@ export default function StudentDesk({ active, successCount }) {
                  <motion.div 
                     key={i}
                     animate={{ 
-                      height: [10, 20 + Math.random() * 40, 10],
+                      height: [10, 20 + (i * 7) % 40, 10],
                     }}
                     transition={{ 
                       repeat: Infinity, 
-                      duration: 0.5 + Math.random() * 1,
+                      duration: 0.5 + ((i * 3) % 10) / 10,
                       ease: "easeInOut" 
                     }}
                     className="w-1 bg-blue-500/40 rounded-full"
@@ -73,11 +73,11 @@ export default function StudentDesk({ active, successCount }) {
                  <motion.div 
                     key={i}
                     animate={{ 
-                      height: [10, 20 + Math.random() * 40, 10],
+                      height: [10, 20 + (i * 7) % 40, 10],
                     }}
                     transition={{ 
                       repeat: Infinity, 
-                      duration: 0.5 + Math.random() * 1,
+                      duration: 0.5 + ((i * 3) % 10) / 10,
                       ease: "easeInOut" 
                     }}
                     className="w-1 bg-blue-500/40 rounded-full"

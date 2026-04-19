@@ -1,9 +1,11 @@
+import React, { useState, useEffect } from 'react';
 import { Database, Layout, BarChart, List } from 'lucide-react';
 import LessonEditor from './LessonEditor';
 import VerificationDashboard from './VerificationDashboard';
 import { languageConfig } from '../config/languageConfig';
+import { useAuth } from '../contexts/AuthContext';
 
-const StudioView = ({ onBack }) => {
+const StudioView = () => {
   const { user } = useAuth();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,8 +18,8 @@ const StudioView = ({ onBack }) => {
       const resp = await fetch('http://localhost:5001/api/material');
       const data = await resp.json();
       setMaterials(data);
-    } catch (err) {
-      console.error('Failed to fetch materials:', err);
+    } catch {
+      console.error('Failed to fetch materials');
     } finally {
       setLoading(false);
     }
@@ -43,7 +45,7 @@ const StudioView = ({ onBack }) => {
        const data = await resp.json();
        setStatus(`Success: ${data.count} lessons migrated.`);
        fetchMaterials();
-    } catch (err) {
+    } catch {
        setStatus('Seed failed. See console.');
     }
   };
@@ -56,7 +58,7 @@ const StudioView = ({ onBack }) => {
         headers: { 'x-user-email': user.email }
       });
       fetchMaterials();
-    } catch (err) {
+    } catch {
       alert('Delete failed');
     }
   };

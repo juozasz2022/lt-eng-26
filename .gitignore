@@ -16,6 +16,13 @@ dist-ssr/
 *.suo
 *.sln
 
+# Project Specific
+lt-eng-app/scratch/
+pokalbiai/
+lt-eng-app/*.txt
+lt-eng-app/prisma/*.db
+lt-eng-app/prisma/*.db-journal
+
 # Environment / Secret
 .env
 .env.local
