@@ -36,10 +36,23 @@ app.post('/api/auth/login', async (req, res) => {
         '12milie.nata@gmail.com',
         'niunejan@gmail.com',
         'ovidijusg@gmail.com',
-        'gabrieliux211@gmail.com'
+        'gabrieliux211@gmail.com',
+        'horecana@gmail.com',
+        'jolanta.uckuroniene@gmail.com'
       ];
       
       if (editors.includes(email)) return ['LEARNER', 'EDITOR'];
+
+      // Testing Team - Learners
+      const learners = [
+        'rasasoloy17@gmail.com',
+        'daprimaite@gmail.com',
+        'zabielaite.jurate@gmail.com',
+        'evaldas.zidonis@gmail.com',
+        'juozasz2025@gmail.com'
+      ];
+
+      if (learners.includes(email)) return ['LEARNER'];
       
       return ['LEARNER']; // Default student role
     };
