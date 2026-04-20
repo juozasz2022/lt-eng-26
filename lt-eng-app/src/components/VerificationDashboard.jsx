@@ -16,10 +16,10 @@ const VerificationDashboard = () => {
     const fetchData = async () => {
       try {
         const [sRes, aRes] = await Promise.all([
-          fetch('http://localhost:5001/api/analytics/lesson-stats', {
+          fetch('/api/analytics/lesson-stats', {
             headers: { 'x-user-email': user.email }
           }),
-          fetch('http://localhost:5001/api/analytics/recent-activity', {
+          fetch('/api/analytics/recent-activity', {
             headers: { 'x-user-email': user.email }
           })
         ]);
@@ -184,7 +184,70 @@ const VerificationDashboard = () => {
         </div>
       </div>
 
-    </div>
+      {/* TESTER MANAGEMENT & QUICK LINKS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* TESTER LIST */}
+        <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-2xl">
+          <h3 className="text-lg font-black uppercase tracking-tighter mb-8 italic flex items-center gap-2">
+            <Users className="text-eng-blue" size={24}/>
+            Aktyvūs Testuotojai (Allow-list)
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Redaktoriai (Editors)</p>
+              {[
+                'ri.balkeviciene@gmail.com', '12milie.nata@gmail.com', 'niunejan@gmail.com', 
+                'ovidijusg@gmail.com', 'gabrieliux211@gmail.com', 'horecana@gmail.com', 'jolanta.uckuroniene@gmail.com'
+              ].map(email => (
+                <div key={email} className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center group hover:bg-eng-blue hover:text-white transition-all">
+                  <span className="text-xs font-black truncate">{email}</span>
+                  <span className="text-[8px] bg-white text-eng-blue px-2 py-1 rounded font-black group-hover:bg-eng-red group-hover:text-white">EDITOR</span>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Mokiniai (Learners)</p>
+              {[
+                'rasasoloy17@gmail.com', 'daprimaite@gmail.com', 'zabielaite.jurate@gmail.com', 'evaldas.zidonis@gmail.com'
+              ].map(email => (
+                <div key={email} className="bg-slate-100 p-4 rounded-2xl flex justify-between items-center group hover:bg-slate-900 hover:text-white transition-all">
+                  <span className="text-xs font-black truncate">{email}</span>
+                  <span className="text-[8px] bg-slate-300 text-slate-700 px-2 py-1 rounded font-black">LEARNER</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-8 text-[10px] text-slate-400 font-bold italic text-center">Paprašykite savo AI asistento (Antigravity), jei norite pridėti naują testuotoją.</p>
+        </div>
+
+        {/* QUICK ACTIONS */}
+        <div className="bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl text-white">
+          <h3 className="text-lg font-black uppercase tracking-tighter mb-8 italic flex items-center gap-2">
+            <Settings className="text-eng-red" size={24}/>
+            Sistemos Valdymas
+          </h3>
+          <div className="space-y-4">
+            <button className="w-full bg-white/5 hover:bg-white/10 p-5 rounded-2xl flex flex-col items-start gap-1 transition-all border border-white/5">
+              <span className="text-xs font-black uppercase tracking-widest">Turinio Studija</span>
+              <span className="text-[10px] text-slate-400">Kurkite naujas iliustracijas ir įgarsinimą</span>
+            </button>
+            <button className="w-full bg-white/5 hover:bg-white/10 p-5 rounded-2xl flex flex-col items-start gap-1 transition-all border border-white/5">
+              <span className="text-xs font-black uppercase tracking-widest">Pamokų Redaktorius</span>
+              <span className="text-[10px] text-slate-400">Taisykite teoriją ir užduotis</span>
+            </div>
+            <div className="mt-12 p-6 bg-eng-red/10 rounded-3xl border border-eng-red/20">
+              <p className="text-[10px] font-black text-eng-red uppercase tracking-widest mb-2">Sistemos Būklė</p>
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
+                <span className="text-lg font-black">STABILU (v26.1)</span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-2">Paskutinis kodo atnaujinimas: Prieš 5 min.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
   );
 };
 

@@ -1,14 +1,56 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { languageConfig } from '../config/languageConfig';
+import { useAuth } from '../contexts/AuthContext';
+import VerificationDashboard from './VerificationDashboard';
+import { LayoutDashboard, GraduationCap, Settings } from 'lucide-react';
 
 export default function Dashboard({ lessons, onSelectLesson, onSelectMatrix }) {
+  const { user, hasRole } = useAuth();
+  const [view, setView] = useState('student'); // 'student' or 'creator'
+  const isCreator = hasRole('CREATOR');
+
+  if (isCreator && view === 'creator') {
+    return (
+      <div className="max-app-container py-12 animate-in">
+        <header className="mb-12 flex justify-between items-center bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl border-b-8 border-slate-950">
+          <div>
+            <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">
+              Savininko<span className="text-eng-red">_SKYDELIS</span>
+            </h1>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2">Sveiki sugrįžę, Juozai</p>
+          </div>
+          <button 
+            onClick={() => setView('student')}
+            className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-2xl font-black transition-all flex items-center gap-3 backdrop-blur-md border border-white/10"
+          >
+            <GraduationCap size={20} />
+            MOKINIO VAIZDAS
+          </button>
+        </header>
+        <VerificationDashboard />
+      </div>
+    );
+  }
+
   return (
     <div className="max-app-container py-12 animate-in">
-      <header className="mb-12 text-center">
-        <h1 className="text-6xl font-black text-eng-blue mb-4 tracking-tighter uppercase italic">
-          Lt-{languageConfig.targetLang.split('-')[0]}<span className="text-eng-red">_26</span>
-        </h1>
-        <p className="text-xl text-slate-600 font-bold opacity-90">{languageConfig.dashboard.methodTitle} {languageConfig.targetLangName} kalbai</p>
+      <header className="mb-12 flex justify-between items-end">
+        <div className="text-center md:text-left">
+          <h1 className="text-6xl font-black text-eng-blue mb-4 tracking-tighter uppercase italic">
+            Lt-{languageConfig.targetLang.split('-')[0]}<span className="text-eng-red">_26</span>
+          </h1>
+          <p className="text-xl text-slate-600 font-bold opacity-90">{languageConfig.dashboard.methodTitle} {languageConfig.targetLangName} kalbai</p>
+        </div>
+        
+        {isCreator && (
+          <button 
+            onClick={() => setView('creator')}
+            className="mb-4 bg-eng-blue hover:bg-slate-900 text-white px-6 py-3 rounded-2xl font-black transition-all flex items-center gap-3 shadow-xl border-b-4 border-blue-900"
+          >
+            <LayoutDashboard size={20} />
+            VALDYMAS
+          </button>
+        )}
       </header>
 
       <div className="grid grid-cols-1 gap-8 items-start mb-16">
