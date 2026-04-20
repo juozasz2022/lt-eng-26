@@ -25,9 +25,22 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Role configuration based on specific emails
     const getRolesForEmail = (email) => {
+      // Core Team
       if (email === 'juozasz2022@gmail.com') return ['LEARNER', 'CREATOR', 'EDITOR'];
       if (email === 'juozasz2024@gmail.com') return ['LEARNER', 'EDITOR'];
       if (email === 'juozasz2025@gmail.com') return ['LEARNER'];
+
+      // Testing Team - Editors
+      const editors = [
+        'ri.balkeviciene@gmail.com',
+        '12milie.nata@gmail.com',
+        'niunejan@gmail.com',
+        'ovidijusg@gmail.com',
+        'gabrieliux211@gmail.com'
+      ];
+      
+      if (editors.includes(email)) return ['LEARNER', 'EDITOR'];
+      
       return ['LEARNER']; // Default student role
     };
 
